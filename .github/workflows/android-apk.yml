@@ -21,11 +21,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Do not use setup-node's npm cache here because this repository may
+      # not contain package-lock.json yet. The cache option makes setup-node
+      # fail before the actual build can start when no lockfile is present.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -33,8 +35,13 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Verify Node and npm
+        run: |
+          node --version
+          npm --version
+
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Build web app
         run: npm run build
