@@ -13,6 +13,9 @@ env:
   APP_VERSION: 2.1.2
   APP_VERSION_CODE: 23
   WEB_APP_URL: https://frank-alex-printing-press-saf2e0.v2.appdeploy.ai/
+  LOGO_URL: https://frank-alex-printing-press-saf2e0.v2.appdeploy.ai/resources/frank-alex-logo.png
+
+auto_cancel: false
 
 jobs:
   build-apk:
@@ -54,11 +57,26 @@ jobs:
           EOF
           cat > www/index.html <<EOF
           <!doctype html>
-          <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Frank Alex Printing Press</title></head>
+          <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Frank Alex Printing Press v2.1.2</title></head>
           <body><p>Loading Frank Alex Printing Press…</p><script>window.location.replace(${WEB_APP_URL@Q});</script></body></html>
           EOF
           npx cap add android
           npx cap sync android
+
+      - name: Add FR logo as native Android icon
+        shell: bash
+        run: |
+          mkdir -p mobile-build/android/app/src/main/res/drawable
+          curl -fL --retry 3 --retry-all-errors "$LOGO_URL" -o /tmp/frank-alex-logo.png
+          convert /tmp/frank-alex-logo.png -resize 512x512^ -gravity center -extent 512x512 mobile-build/android/app/src/main/res/drawable/frank_alex_logo.png
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('mobile-build/android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          if 'android:icon="@drawable/frank_alex_logo"' not in s:
+              s=s.replace('<application ', '<application android:icon="@drawable/frank_alex_logo" android:roundIcon="@drawable/frank_alex_logo" ', 1)
+          p.write_text(s)
+          PY
 
       - name: Add native notification permission
         shell: bash
@@ -68,8 +86,7 @@ jobs:
           p=Path('mobile-build/android/app/src/main/AndroidManifest.xml')
           s=p.read_text()
           if 'android.permission.POST_NOTIFICATIONS' not in s:
-              s=s.replace('<manifest ', '<manifest xmlns:android="http://schemas.android.com/apk/res/android" ', 1) if 'xmlns:android=' not in s else s
-              s=s.replace('>', '>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />', 1)
+              s=s.replace('    <application ', '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application ', 1)
           p.write_text(s)
           PY
           MAIN_DIR=mobile-build/android/app/src/main/java/com/frankalex/printingpress
