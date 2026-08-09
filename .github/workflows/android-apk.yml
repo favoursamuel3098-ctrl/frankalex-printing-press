@@ -15,8 +15,6 @@ env:
   WEB_APP_URL: https://frank-alex-printing-press-saf2e0.v2.appdeploy.ai/
   LOGO_URL: https://frank-alex-printing-press-saf2e0.v2.appdeploy.ai/resources/frank-alex-logo.png
 
-auto_cancel: false
-
 jobs:
   build-apk:
     runs-on: ubuntu-latest
@@ -63,7 +61,7 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Add FR logo as native Android icon
+      - name: Add FR logo and native notification permission
         shell: bash
         run: |
           mkdir -p mobile-build/android/app/src/main/res/drawable
@@ -71,22 +69,13 @@ jobs:
           convert /tmp/frank-alex-logo.png -resize 512x512^ -gravity center -extent 512x512 mobile-build/android/app/src/main/res/drawable/frank_alex_logo.png
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('mobile-build/android/app/src/main/AndroidManifest.xml')
-          s=p.read_text()
-          if 'android:icon="@drawable/frank_alex_logo"' not in s:
-              s=s.replace('<application ', '<application android:icon="@drawable/frank_alex_logo" android:roundIcon="@drawable/frank_alex_logo" ', 1)
-          p.write_text(s)
-          PY
-
-      - name: Add native notification permission
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          import re
           p=Path('mobile-build/android/app/src/main/AndroidManifest.xml')
           s=p.read_text()
           if 'android.permission.POST_NOTIFICATIONS' not in s:
-              s=s.replace('    <application ', '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application ', 1)
+              s=s.replace('<application ', '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application ', 1)
+          if 'android:icon="@drawable/frank_alex_logo"' not in s:
+              s=s.replace('<application ', '<application android:icon="@drawable/frank_alex_logo" android:roundIcon="@drawable/frank_alex_logo" ', 1)
           p.write_text(s)
           PY
           MAIN_DIR=mobile-build/android/app/src/main/java/com/frankalex/printingpress
