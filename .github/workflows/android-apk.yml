@@ -1,17 +1,17 @@
-name: Build Android APK v2.1.0
+name: Build Android APK v2.1.1
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v2.1.0'
+      - 'v2.1.1'
 
 permissions:
   contents: write
 
 env:
-  APP_VERSION: 2.1.0
-  APP_VERSION_CODE: 21
+  APP_VERSION: 2.1.1
+  APP_VERSION_CODE: 22
   WEB_APP_URL: https://frank-alex-printing-press-saf2e0.v2.appdeploy.ai/
 
 jobs:
@@ -60,6 +60,41 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Add native notification permission
+        shell: bash
+        run: |
+          MANIFEST=mobile-build/android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('mobile-build/android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          if 'android.permission.POST_NOTIFICATIONS' not in s:
+              s=s.replace('<manifest ', '<manifest xmlns:android="http://schemas.android.com/apk/res/android" ', 1) if 'xmlns:android=' not in s else s
+              s=s.replace('>', '>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />', 1)
+          p.write_text(s)
+          PY
+          MAIN_DIR=mobile-build/android/app/src/main/java/com/frankalex/printingpress
+          mkdir -p "$MAIN_DIR"
+          cat > "$MAIN_DIR/MainActivity.java" <<'JAVA'
+          package com.frankalex.printingpress;
+
+          import android.Manifest;
+          import android.content.pm.PackageManager;
+          import android.os.Build;
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                      requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
+                  }
+              }
+          }
+          JAVA
+
       - name: Set Android version
         shell: bash
         run: |
@@ -67,8 +102,8 @@ jobs:
           from pathlib import Path
           p = Path('mobile-build/android/app/build.gradle')
           s = p.read_text()
-          s = s.replace('versionCode 1', 'versionCode 21')
-          s = s.replace('versionName "1.0"', 'versionName "2.1.0"')
+          s = s.replace('versionCode 1', 'versionCode 22')
+          s = s.replace('versionName "1.0"', 'versionName "2.1.1"')
           p.write_text(s)
           PY
 
@@ -80,20 +115,20 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Rename APK
-        run: cp mobile-build/android/app/build/outputs/apk/debug/app-debug.apk Frank-Alex-Printing-Press-v2.1.0.apk
+        run: cp mobile-build/android/app/build/outputs/apk/debug/app-debug.apk Frank-Alex-Printing-Press-v2.1.1.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Frank-Alex-Printing-Press-v2.1.0
-          path: Frank-Alex-Printing-Press-v2.1.0.apk
+          name: Frank-Alex-Printing-Press-v2.1.1
+          path: Frank-Alex-Printing-Press-v2.1.1.apk
           retention-days: 30
 
       - name: Create GitHub release
-        if: startsWith(github.ref, 'refs/tags/v2.1.0')
+        if: startsWith(github.ref, 'refs/tags/v2.1.1')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.1.0
-          name: Frank Alex Printing Press v2.1.0
+          tag_name: v2.1.1
+          name: Frank Alex Printing Press v2.1.1
           generate_release_notes: true
-          files: Frank-Alex-Printing-Press-v2.1.0.apk
+          files: Frank-Alex-Printing-Press-v2.1.1.apk
