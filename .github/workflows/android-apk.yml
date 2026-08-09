@@ -12,6 +12,7 @@ permissions:
 env:
   APP_VERSION: 2.1.0
   APP_VERSION_CODE: 21
+  WEB_APP_URL: https://frank-alex-printing-press-saf2e0.v2.appdeploy.ai/
 
 jobs:
   build-apk:
@@ -32,29 +33,39 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Verify Node and npm
+      - name: Create standalone mobile shell
+        shell: bash
         run: |
-          node --version
-          npm --version
-
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
-
-      - name: Build web app
-        run: npm run build
-
-      - name: Create Android project
-        run: npx cap add android
-
-      - name: Sync web app to Android
-        run: npx cap sync android
+          rm -rf mobile-build
+          mkdir -p mobile-build/www
+          cd mobile-build
+          npm init -y
+          npm install --no-audit --no-fund @capacitor/cli@7.4.3 @capacitor/core@7.4.3 @capacitor/android@7.4.3
+          cat > capacitor.config.json <<EOF
+          {
+            "appId": "com.frankalex.printingpress",
+            "appName": "Frank Alex Printing Press",
+            "webDir": "www",
+            "server": {
+              "url": "${WEB_APP_URL}",
+              "cleartext": false
+            }
+          }
+          EOF
+          cat > www/index.html <<EOF
+          <!doctype html>
+          <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Frank Alex Printing Press</title></head>
+          <body><p>Loading Frank Alex Printing Press…</p><script>window.location.replace(${WEB_APP_URL@Q});</script></body></html>
+          EOF
+          npx cap add android
+          npx cap sync android
 
       - name: Set Android version
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('android/app/build.gradle')
+          p = Path('mobile-build/android/app/build.gradle')
           s = p.read_text()
           s = s.replace('versionCode 1', 'versionCode 21')
           s = s.replace('versionName "1.0"', 'versionName "2.1.0"')
@@ -62,14 +73,14 @@ jobs:
           PY
 
       - name: Make Gradle executable
-        run: chmod +x android/gradlew
+        run: chmod +x mobile-build/android/gradlew
 
       - name: Build debug APK
-        working-directory: android
+        working-directory: mobile-build/android
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Frank-Alex-Printing-Press-v2.1.0.apk
+        run: cp mobile-build/android/app/build/outputs/apk/debug/app-debug.apk Frank-Alex-Printing-Press-v2.1.0.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
