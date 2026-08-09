@@ -21,9 +21,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Do not use setup-node's npm cache here because this repository may
-      # not contain package-lock.json yet. The cache option makes setup-node
-      # fail before the actual build can start when no lockfile is present.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -41,7 +38,7 @@ jobs:
           npm --version
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Build web app
         run: npm run build
