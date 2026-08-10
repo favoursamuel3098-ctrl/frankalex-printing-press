@@ -63,35 +63,53 @@ jobs:
         shell: bash
         run: |
           mkdir -p mobile-build/android/app/src/main/res/drawable
+      - name: Add FR logo and native notification permission
+        shell: bash
+        run: |
+          mkdir -p mobile-build/android/app/src/main/res/drawable
 
-if [ -f "images.png" ]; then
-  cp "images.png" /tmp/frank-alex-logo.png
-elif [ -f "frank-alex-logo.png" ]; then
-  cp "frank-alex-logo.png" /tmp/frank-alex-logo.png
-else
-  echo "ERROR: FR logo image was not found in the repository."
-  find . -maxdepth 3 -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \)
-  exit 1
-fi
+          if [ -f "images.png" ]; then
+            cp "images.png" /tmp/frank-alex-logo.png
+          elif [ -f "frank-alex-logo.png" ]; then
+            cp "frank-alex-logo.png" /tmp/frank-alex-logo.png
+          else
+            echo "ERROR: FR logo image was not found in the repository."
+            find . -maxdepth 3 -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \)
+            exit 1
+          fi
 
-convert /tmp/frank-alex-logo.png \
-  -resize 512x512^ \
-  -gravity center \
-  -extent 512x512 \
-  mobile-build/android/app/src/main/res/drawable/frank_alex_logo.png
+          convert /tmp/frank-alex-logo.png \
+            -resize 512x512^ \
+            -gravity center \
+            -extent 512x512 \
+            mobile-build/android/app/src/main/res/drawable/frank_alex_logo.png
+
           python3 - <<'PY'
           from pathlib import Path
-          import re
-          p=Path('mobile-build/android/app/src/main/AndroidManifest.xml')
-          s=p.read_text()
+
+          p = Path('mobile-build/android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+
           if 'android.permission.POST_NOTIFICATIONS' not in s:
-              s=s.replace('<application ', '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application ', 1)
+              s = s.replace(
+                  '<application ',
+                  '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application ',
+                  1
+              )
+
           if 'android:icon="@drawable/frank_alex_logo"' not in s:
-              s=s.replace('<application ', '<application android:icon="@drawable/frank_alex_logo" android:roundIcon="@drawable/frank_alex_logo" ', 1)
+              s = s.replace(
+                  '<application ',
+                  '<application android:icon="@drawable/frank_alex_logo" android:roundIcon="@drawable/frank_alex_logo" ',
+                  1
+              )
+
           p.write_text(s)
           PY
+
           MAIN_DIR=mobile-build/android/app/src/main/java/com/frankalex/printingpress
           mkdir -p "$MAIN_DIR"
+
           cat > "$MAIN_DIR/MainActivity.java" <<'JAVA'
           package com.frankalex.printingpress;
 
@@ -105,13 +123,18 @@ convert /tmp/frank-alex-logo.png \
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                      requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
+
+                  if (Build.VERSION.SDK_INT >= 33 &&
+                      checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                          != PackageManager.PERMISSION_GRANTED) {
+                      requestPermissions(
+                          new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                          1001
+                      );
                   }
               }
           }
           JAVA
-
       - name: Set Android version
         shell: bash
         run: |
