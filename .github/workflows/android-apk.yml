@@ -63,11 +63,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p mobile-build/android/app/src/main/res/drawable
-      - name: Add FR logo and native notification permission
-        shell: bash
-        run: |
-          mkdir -p mobile-build/android/app/src/main/res/drawable
-
+      
           if [ -f "images.png" ]; then
             cp "images.png" /tmp/frank-alex-logo.png
           elif [ -f "frank-alex-logo.png" ]; then
