@@ -13,6 +13,7 @@ env:
   APP_VERSION: 2.1.2
   APP_VERSION_CODE: 23
   WEB_APP_URL: https://frank-alex-printing-press-saf2e0.v2.appdeploy.ai/
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
@@ -31,7 +32,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-        
+
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
 
       - name: Create standalone mobile shell
         shell: bash
@@ -39,8 +44,10 @@ jobs:
           rm -rf mobile-build
           mkdir -p mobile-build/www
           cd mobile-build
+
           npm init -y
           npm install --no-audit --no-fund @capacitor/cli@7.4.3 @capacitor/core@7.4.3 @capacitor/android@7.4.3
+
           cat > capacitor.config.json <<EOF
           {
             "appId": "com.frankalex.printingpress",
@@ -52,50 +59,39 @@ jobs:
             }
           }
           EOF
+
           cat > www/index.html <<EOF
           <!doctype html>
-          <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Frank Alex Printing Press v2.1.2</title></head>
-          <body><p>Loading Frank Alex Printing Press…</p><script>window.location.replace(${WEB_APP_URL@Q});</script></body></html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>Frank Alex Printing Press v2.1.2</title>
+          </head>
+          <body>
+            <p>Loading Frank Alex Printing Press...</p>
+            <script>
+              window.location.replace(${WEB_APP_URL@Q});
+            </script>
+          </body>
+          </html>
           EOF
+
           npx cap add android
           npx cap sync android
-                - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-          
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Install ImageMagick
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-
-      - name: Create standalone mobile shell
-      - name: Install ImageMagick
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-
-      - name: Create standalone mobile shell
 
       - name: Add FR logo and native notification permission
         shell: bash
         run: |
           mkdir -p mobile-build/android/app/src/main/res/drawable
-      
+
           if [ -f "images.png" ]; then
             cp "images.png" /tmp/frank-alex-logo.png
           elif [ -f "frank-alex-logo.png" ]; then
             cp "frank-alex-logo.png" /tmp/frank-alex-logo.png
           else
             echo "ERROR: FR logo image was not found in the repository."
-            find . -maxdepth 3 -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \)
+            find . -maxdepth 4 -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \)
             exit 1
           fi
 
@@ -108,19 +104,19 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          p = Path('mobile-build/android/app/src/main/AndroidManifest.xml')
+          p = Path("mobile-build/android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
 
-          if 'android.permission.POST_NOTIFICATIONS' not in s:
+          if "android.permission.POST_NOTIFICATIONS" not in s:
               s = s.replace(
-                  '<application ',
+                  "<application ",
                   '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application ',
                   1
               )
 
           if 'android:icon="@drawable/frank_alex_logo"' not in s:
               s = s.replace(
-                  '<application ',
+                  "<application ",
                   '<application android:icon="@drawable/frank_alex_logo" android:roundIcon="@drawable/frank_alex_logo" ',
                   1
               )
@@ -128,7 +124,7 @@ jobs:
           p.write_text(s)
           PY
 
-          MAIN_DIR=mobile-build/android/app/src/main/java/com/frankalex/printingpress
+          MAIN_DIR="mobile-build/android/app/src/main/java/com/frankalex/printingpress"
           mkdir -p "$MAIN_DIR"
 
           cat > "$MAIN_DIR/MainActivity.java" <<'JAVA'
@@ -156,15 +152,19 @@ jobs:
               }
           }
           JAVA
+
       - name: Set Android version
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('mobile-build/android/app/build.gradle')
+
+          p = Path("mobile-build/android/app/build.gradle")
           s = p.read_text()
-          s = s.replace('versionCode 1', 'versionCode 23')
+
+          s = s.replace("versionCode 1", "versionCode 23")
           s = s.replace('versionName "1.0"', 'versionName "2.1.2"')
+
           p.write_text(s)
           PY
 
@@ -176,7 +176,9 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Rename APK
-        run: cp mobile-build/android/app/build/outputs/apk/debug/app-debug.apk Frank-Alex-Printing-Press-v2.1.2.apk
+        run: |
+          cp mobile-build/android/app/build/outputs/apk/debug/app-debug.apk \
+            Frank-Alex-Printing-Press-v2.1.2.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
